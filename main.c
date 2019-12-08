@@ -5,8 +5,98 @@
 #include <time.h>
 
 
-static float x_curr , y_curr , z_curr;//trenutna pozicija
-static float r;//precnik lopte
+#define DUZINA_STAZE       (10000)
+
+#define TIMER_INTERVAL     (20) 
+#define TIMER_ID_levo      (0)
+#define TIMER_ID_desno     (1)
+#define TIMER_ID_napred    (2)
+
+static int on_animation_levo = 0;
+static int on_animation_desno = 0;
+static int on_animation_napred = 0;
+
+
+typedef struct{
+    double x;
+    double y;
+    double z;
+    double kraj;//daljina koju moze da predje levo i desno
+}POZICIJA;
+
+
+
+POZICIJA lopta;//igrac
+
+
+
+void timer_movement(int value)
+{
+    if(value != TIMER_ID_levo && value != TIMER_ID_desno && value != TIMER_ID_napred)
+        return;
+
+    //skretanje desno
+    if(value == TIMER_ID_desno )
+    {
+        if(lopta.x < 40)
+        {
+            on_animation_desno = 0;
+        
+            glutPostRedisplay();
+
+            if(on_animation_desno)
+                glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_desno);	
+        }
+        else if(lopta.x = 40)
+        {
+            lopta.z -= 10;
+            
+            on_animation_desno = 0;
+        
+            glutPostRedisplay();
+
+            if(on_animation_desno)
+                glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_desno);	
+        }
+        
+    }
+    //skretanje levo
+    else if(value == TIMER_ID_levo)
+    {
+        if(lopta.x > -40)
+        {
+            on_animation_levo = 0;
+        
+            glutPostRedisplay();
+
+            if(on_animation_levo)
+                glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_levo);	
+        }
+        else if(lopta.x == -40)
+        {
+            lopta.z -= 10;
+            
+            on_animation_levo = 0;
+        
+            glutPostRedisplay();
+
+            if(on_animation_desno)
+                glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_levo);	
+        }
+    }
+    //kretanje pravo
+    else if(value == TIMER_ID_napred)
+    {
+        on_animation_napred = 0;
+        
+        glutPostRedisplay();
+            
+        if(on_animation_napred)
+                glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_napred);	
+    }
+            
+}
+
 
 
 void napravi_prepreke()
@@ -21,34 +111,38 @@ void napravi_prepreke()
         int ind  = rand() % 3;
         int ind2 = ind + 2;
         
-        if(ind == 0)
-            x_trans = -29;
-        else if(ind == 1)
+        if(ind == 0)//0 je leva traka
+            x_trans = -30;
+        else if(ind == 1)//1 je srednja traka
             x_trans = 0;
-        else
-            x_trans = 29;
-        y_trans = 0;
+        else//desna traka
+            x_trans = 30;
+        
+        
+        int size = (rand() % 15) + 8;
+        
+        y_trans = size;
         z_trans -= 100;
         
         
-        int size = (rand() % 15) + 10;
-        
         float r,g,b;
         
-        //Kocka = prepreka
-        glPushMatrix();
-            glDisable(GL_LIGHTING);
+        if(i % 2 == 0 && i % 5 != 0 && i % 10 != 0)
+        {
+            //Kocka = prepreka
+            glPushMatrix();
+                glDisable(GL_LIGHTING);
                 
-            r = (float)(rand()%10)/10;
-            g = (float)(rand()%10)/10;
-            b = (float)(rand()%10)/10;
-            glColor3f(r,g,b);
+                r = (float)(rand()%10)/10;
+                g = (float)(rand()%10)/10;
+                b = (float)(rand()%10)/10;
+                glColor3f(r,g,b);
             
-            glTranslatef(x_trans,y_trans,z_trans);
-            glutSolidCube(size);
+                glTranslatef(x_trans,y_trans,z_trans);
+                glutSolidCube(size);
             
-        glPopMatrix();
-        
+            glPopMatrix();
+        }
         
         //Cajnik = hemija
         if(i % 10 == 0)
@@ -64,16 +158,17 @@ void napravi_prepreke()
         
         
         //Torus = obrazac
-        if(i % 5 == 0 && i % 10 != 0)
-        {
+       if(i % 5 == 0 && i % 10 != 0)
+       {
             glPushMatrix();
-                glColor3f(1,1,1);
+                glColor3f(0.3,1,1);
                 
                 glRotatef(145, 1, 0, 0);
                 glTranslatef(x_trans*(-1),y_trans,z_trans);
-                glutSolidTorus(3, 5, 36, 36);
+                glutSolidTorus(5, 5, 36, 36);
             glPopMatrix();
         }
+        
         glEnable(GL_LIGHTING);
     }
     
@@ -81,15 +176,35 @@ void napravi_prepreke()
 
 
 
+void napravi_lift()
+{
+    glPushMatrix();
+                glDisable(GL_LIGHTING);
+                
+                glColor3f(0.5,0.5,0.5);
+            
+                glTranslatef(0,0,-DUZINA_STAZE-50);
+                glScalef(20,10,10);
+                glutSolidCube(10);
+                
+            
+                glEnable(GL_LIGHTING);
+    glPopMatrix();
+}
+
+
+
+
 static void on_display(void)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
+    //Kamera prati lopticu
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     gluLookAt(
-        0,20,25,
-        0,0,0,
+        0,35,lopta.z+30,
+        0,5,lopta.z+5,
         0,1,0);
     
     
@@ -116,7 +231,6 @@ static void on_display(void)
     
     
     
-    
     //Igrac
     glPushMatrix();
     
@@ -126,9 +240,10 @@ static void on_display(void)
         glMaterialfv(GL_FRONT, GL_SHININESS, high_shininess);//veliki odsjaj
         glMaterialfv(GL_FRONT, GL_EMISSION, no_material);
         
-        glTranslatef(0, 0, 12);
+        
+        glTranslatef(lopta.x, lopta.y, lopta.z );
         glColor3f(0,0.5,0.1);
-        glutWireSphere(5,350,350);
+        glutWireSphere(7,350,350);
         
 
     glPopMatrix();
@@ -146,10 +261,10 @@ static void on_display(void)
         
         glColor3f(1,1,0.3);
         glBegin(GL_POLYGON);
-            glVertex3f( 30,  -50,  100);
-            glVertex3f(-30,  -50,  100);
-            glVertex3f(-30,   10, -300000);
-            glVertex3f( 30,   10, -300000);
+            glVertex3f( 30,  0,  100);
+            glVertex3f(-30,  0,  100);
+            glVertex3f(-30,   0, -DUZINA_STAZE);
+            glVertex3f( 30,   0, -DUZINA_STAZE);
         glEnd();
         
     glPopMatrix();
@@ -166,10 +281,10 @@ static void on_display(void)
         
         glColor3f(0.5,0.7,0.5);
         glBegin(GL_POLYGON);
-            glVertex3f(-30,  -50,  100);
-            glVertex3f(-120,  -50,  100);
-            glVertex3f(-120,   10, -300000);
-            glVertex3f(-30,   10, -300000);
+            glVertex3f(-30,  0,  100);
+            glVertex3f(-120,  0,  100);
+            glVertex3f(-120,   0, -DUZINA_STAZE);
+            glVertex3f(-30,   0, -DUZINA_STAZE);
         glEnd();
     glPopMatrix();
     
@@ -185,20 +300,23 @@ static void on_display(void)
         
         glColor3f(0.5,0.7,0.5);
         glBegin(GL_POLYGON);
-            glVertex3f( 30,  -50,  100);
-            glVertex3f( 120,  -50,  100);
-            glVertex3f( 120,   10, -300000);
-            glVertex3f( 30,   10, -300000);
+            glVertex3f( 30,  0,  100);
+            glVertex3f( 120,  0,  100);
+            glVertex3f( 120,   0, -DUZINA_STAZE);
+            glVertex3f( 30,   0, -DUZINA_STAZE);
         glEnd();
     glPopMatrix();
     
-    
-    
     napravi_prepreke();
+    napravi_lift();
     
+    //Pomeranje loptice napred prilikom svakog pokreta levo ili desno
+    lopta.z -= 10;
+    glTranslatef(0,0,lopta.z);
     
     glutSwapBuffers();
 }
+
 
 
         
@@ -207,12 +325,6 @@ static void initialize(void)
 {
     glClearColor(0.75,0.75,0.75,0);
     
-    //Precnik i pocetne koordinate lopte
-    r = 3;
-    x_curr = 0;
-    y_curr = 0;
-    z_curr = 10;
-
     //Ambijentalna boja
     GLfloat light_ambient[] = { 0, 0, 0, 1 };
     
@@ -232,11 +344,13 @@ static void initialize(void)
     glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
     glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);
     
+    
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, model_ambient);
     
     glEnable(GL_DEPTH_TEST);
 
 }
+
 
 
 
@@ -250,24 +364,53 @@ static void on_keyboard(unsigned char key, int x, int y)
             break;
         case 'A':
         case 'a':
-            //levo
+                if(!on_animation_levo )//&& lopta.x >= 0)
+                {
+                    lopta.x -= lopta.kraj;
+                    if(lopta.x < -40)
+                        lopta.x = -40;
+                    
+                    if(lopta.x < 0)
+                        lopta.z -= 10;
+                    
+                    
+                    glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_levo);
+                    on_animation_levo = 1;
+                }
             break;
         case 'D':
         case 'd':
-            //desno
+                if(!on_animation_desno)
+                {   
+                    lopta.x += lopta.kraj;
+                    if(lopta.x > 40)
+                        lopta.x = 40;
+                    
+                    if(lopta.x > 0)
+                        lopta.z -= 10;
+                    
+                    glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_desno);
+                    on_animation_desno = 1;
+                }
             break;
-        case 'S':
-        case 's':
-            //pocetak kretanja
-
-        default:
+        case 'W':
+        case 'w':
+                if(!on_animation_napred)
+                {
+                    lopta.z -= 10;
+                    lopta.x += 0;
+                    
+                    glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_napred);
+                    on_animation_napred = 1;
+                }
             break;
-            
     }
     
     
     
 }
+
+
 
 
 static void on_reshape(int width , int height)
@@ -278,6 +421,8 @@ static void on_reshape(int width , int height)
     glLoadIdentity();
     gluPerspective( 120, width/(float)height , 1 , 100000 );
 }
+
+
 
 
 
@@ -292,11 +437,15 @@ int main(int argc,char** argv)
     
     
     initialize();
-    
+
     glutKeyboardFunc(on_keyboard);
     glutReshapeFunc(on_reshape);
     glutDisplayFunc(on_display);
     
+    lopta.x = 0;
+    lopta.y = 5;
+    lopta.z = 12;
+    lopta.kraj = 40;
 
     glutFullScreen();
 

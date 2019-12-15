@@ -3,6 +3,7 @@
 #include <GL/glut.h>
 #include <math.h>
 #include <time.h>
+#include "image.h"
 
 
 #define DUZINA_STAZE       (10000)
@@ -12,9 +13,19 @@
 #define TIMER_ID_desno     (1)
 #define TIMER_ID_napred    (2)
 
+#define FILENAME0          "images.bmp"
+#define FILENAME1          "ormari3.bmp"
+
+static GLuint names[2];
+
 static int on_animation_levo = 0;
 static int on_animation_desno = 0;
 static int on_animation_napred = 0;
+
+//Uglovi za rotiranje kamere
+static float pi = 3.141592653589793;
+static float alfa , beta; 
+static float delta_alfa , delta_beta;
 
 
 typedef struct{
@@ -98,7 +109,7 @@ void timer_movement(int value)
 }
 
 
-
+//TODO: Trebaju mi koordinate prepreka.Ispravi ili napravi skroz novu funkciju.
 void napravi_prepreke()
 {
     int x_trans,y_trans,z_trans;
@@ -106,7 +117,7 @@ void napravi_prepreke()
     y_trans = 0;
     z_trans = 0;
     
-    for(int i = 0 ; i < 100 ; i++)
+    for(int i = 0 ; i < 99 ; i++)
     {
         int ind  = rand() % 3;
         int ind2 = ind + 2;
@@ -178,18 +189,81 @@ void napravi_prepreke()
 
 void napravi_lift()
 {
+    
+    //LIFT
     glPushMatrix();
                 glDisable(GL_LIGHTING);
                 
                 glColor3f(0.5,0.5,0.5);
             
-                glTranslatef(0,0,-DUZINA_STAZE-50);
-                glScalef(20,10,10);
-                glutSolidCube(10);
+                glBindTexture(GL_TEXTURE_2D, names[0]);
+                glBegin(GL_POLYGON);
+                    glNormal3f(0,0,1);
+                
+                    glTexCoord2f(0.2,0);
+                    glVertex3f(-120,0,-DUZINA_STAZE);
+                    
+                    glTexCoord2f(1,0);
+                    glVertex3f(120,0,-DUZINA_STAZE);
+                    
+                    glTexCoord2f(1,1);
+                    glVertex3f(120,80,-DUZINA_STAZE);
+                    
+                    glTexCoord2f(0.2,1);
+                    glVertex3f(-120,80,-DUZINA_STAZE);
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
                 
             
                 glEnable(GL_LIGHTING);
     glPopMatrix();
+    
+    
+    //ORMARI
+    glPushMatrix();
+                glDisable(GL_LIGHTING);
+                
+                glColor3f(1,1,1);
+                
+                glBindTexture(GL_TEXTURE_2D, names[1]);
+                glBegin(GL_QUADS);
+                    glNormal3f(1,1,1);
+                
+                    glTexCoord2f(0,0);
+                    glVertex3f(-120,0,-DUZINA_STAZE+300);
+                    
+                    glTexCoord2f(1,0);
+                    glVertex3f(-120,0,-DUZINA_STAZE);
+                    
+                    glTexCoord2f(1,1);
+                    glVertex3f(-120,50,-DUZINA_STAZE);
+                    
+                    glTexCoord2f(0,1);
+                    glVertex3f(-120,50,-DUZINA_STAZE+300);
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
+                
+                glBindTexture(GL_TEXTURE_2D, names[1]);
+                glBegin(GL_QUADS);
+                    glNormal3f(1,1,1);
+                
+                    glTexCoord2f(0,0);
+                    glVertex3f(120,0,-DUZINA_STAZE+300);
+                    
+                    glTexCoord2f(1,0);
+                    glVertex3f(120,0,-DUZINA_STAZE);
+                    
+                    glTexCoord2f(1,1);
+                    glVertex3f(120,50,-DUZINA_STAZE);
+                    
+                    glTexCoord2f(0,1);
+                    glVertex3f(120,50,-DUZINA_STAZE+300);
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
+                
+                glEnable(GL_LIGHTING);
+    glPopMatrix();
+    
 }
 
 
@@ -203,9 +277,9 @@ static void on_display(void)
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     gluLookAt(
-        0,35,lopta.z+30,
-        0,5,lopta.z+5,
-        0,1,0);
+        7*cos(beta)*cos(alfa)-5, 7*cos(beta)*sin(alfa)+35, 7*sin(beta)+lopta.z+30,
+        0, 5 ,lopta.z+5,
+        0, 1, 0);
     
     
     //Koeficijenti za osvetljenje igraca:
@@ -347,8 +421,56 @@ static void initialize(void)
     
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, model_ambient);
     
+    
+    //Lepljenje tekstura
+    Image* image;
+    
     glEnable(GL_DEPTH_TEST);
-
+    glEnable(GL_TEXTURE_2D);
+    
+    glTexEnvf(GL_TEXTURE_ENV,
+              GL_TEXTURE_ENV_MODE,
+              GL_REPLACE
+            );
+    
+    //TODO: Ponavljanje teksture
+    
+    image = image_init(0,0);
+    
+    //ORMARI
+    image_read(image,FILENAME1);
+    glGenTextures(2,names);
+    
+    glBindTexture(GL_TEXTURE_2D,names[1]);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP);//GL_REPEAT
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);//GL_REPEAT
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,image->width,image->height,0,GL_RGB,GL_UNSIGNED_BYTE,image->pixels);
+    glBindTexture(GL_TEXTURE_2D,0);
+    
+    //LIFT
+    image_read(image,FILENAME0);
+    
+    glBindTexture(GL_TEXTURE_2D,names[0]);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,image->width,image->height,0,GL_RGB,GL_UNSIGNED_BYTE,image->pixels);
+    glBindTexture(GL_TEXTURE_2D,0);
+    
+   
+    image_done(image);
+    
+    
+    
+    alfa = 10;
+    delta_alfa = pi/90;
+    
+    beta = 10;
+    delta_beta = pi/90;
+    
 }
 
 
@@ -364,7 +486,7 @@ static void on_keyboard(unsigned char key, int x, int y)
             break;
         case 'A':
         case 'a':
-                if(!on_animation_levo )//&& lopta.x >= 0)
+                if(!on_animation_levo )
                 {
                     lopta.x -= lopta.kraj;
                     if(lopta.x < -40)
@@ -404,6 +526,39 @@ static void on_keyboard(unsigned char key, int x, int y)
                     on_animation_napred = 1;
                 }
             break;
+        //Okretanje kamere oko z-ose(desno na levo)
+        case 'E':
+        case 'e':
+            alfa -= delta_alfa;
+            if( alfa > 2*pi)
+                alfa -= 2*pi;
+            else if( alfa < -2*pi)
+                alfa += 2*pi;
+            
+            lopta.z += 10;
+            
+            glutPostRedisplay();
+            break;
+        //Okretanje kamere oko z-ose(levo na desno)
+        case 'Q':
+        case 'q':
+            alfa += delta_alfa;
+            if (alfa > 2 * pi)  
+                alfa -= 2 * pi;
+            else if (alfa < 0) 
+                alfa += 2 * pi;
+            
+            lopta.z += 10;
+            
+            glutPostRedisplay();
+            break;
+        //Resetovanje kamere na pocetne koordinate
+        case 'R':
+        case 'r':
+            alfa = 0; 
+            beta = 0;
+            glutPostRedisplay();
+        break;
     }
     
     

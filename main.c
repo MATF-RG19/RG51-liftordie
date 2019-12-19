@@ -6,45 +6,128 @@
 #include "image.h"
 
 
-#define DUZINA_STAZE       (10000)
+#define BROJ_DOZVOLJENIH_POTEZA      (400)
 
+#define PI 3.1415926535897
+#define DUZINA_KORAKA      (10)   //Pomeranje po z osi 
+#define DUZINA_STAZE       (7000)
+#define VISINA_ORMARA      (60)   //Isto sto i visina lifta
+
+
+//Kretanje glavnog igraca
 #define TIMER_INTERVAL     (20) 
 #define TIMER_ID_levo      (0)
 #define TIMER_ID_desno     (1)
 #define TIMER_ID_napred    (2)
+#define TIMER_ID_nazad     (3)
+
+
+//Slike potrebne za teksture
+static GLuint names[5];
 
 #define FILENAME0          "images.bmp"
 #define FILENAME1          "ormari3.bmp"
+#define FILENAME2          "grb-okrenut.bmp"
+#define FILENAME3          "eksplozija.bmp"
+#define FILENAME4          "ss2.bmp"
 
-static GLuint names[2];
 
-static int on_animation_levo = 0;
-static int on_animation_desno = 0;
+//Kretanje glavnog igraca
+static int on_animation_levo   = 0;
+static int on_animation_desno  = 0;
 static int on_animation_napred = 0;
+static int on_animation_nazad  = 0;
+
 
 //Uglovi za rotiranje kamere
 static float pi = 3.141592653589793;
 static float alfa , beta; 
 static float delta_alfa , delta_beta;
 
+//Ugao rotacije loptice
+static float ugao_rotacije = 0;
+
+//koordinate za kameru
+static int x_kam = -5;
+static int y_kam = 35;
+static int z_kam = 30;
+
+
+//Brojac odigranih pomeranja
+int brojac_poteza = 0;
+
 
 typedef struct{
     double x;
     double y;
     double z;
-    double kraj;//daljina koju moze da predje levo i desno
+    double kraj;//daljina koju loptica moze da predje levo i desno
 }POZICIJA;
-
-
 
 POZICIJA lopta;//igrac
 
 
 
+
+//Ispis teksta koji je fiksiran na ekran i prati kretanje loptice
+void drawString(float x, float y, float z, char *string ) {
+  
+    glDisable(GL_LIGHTING);
+    
+    glRasterPos3f(x, y, z);
+    glColor3f(1,1,1);
+
+    for (char* s = string; *s != '\0'; s++)
+    {
+        glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, *s);
+    }
+    
+    glEnable(GL_LIGHTING);
+}
+
+
+//Ekran u slucaju neuspeha(istroseni koraci ili sudar sa preprekom)
+void game_over_screen()
+{
+    glClearColor(0,0,0,1);
+    
+    lopta.z = -2*DUZINA_STAZE;
+ 
+    x_kam = lopta.x + 5;
+    y_kam = lopta.y + 10;
+    z_kam = lopta.z + 15;
+    
+}
+
+//Mali hack: Ako se krene unazad (i udje u lift za hemijski fakultet)
+void hack_screen()
+{
+    glClearColor(0.5,0,0,1);
+    
+    x_kam = lopta.x + 10;
+    y_kam = 5*cos(ugao_rotacije)*sin(ugao_rotacije);
+    z_kam = 1.2*lopta.z + 30;
+    
+}
+
+//Ukoliko se udje u lift na kraju hodnika
+void winner_screen()
+{
+    glClearColor(0.1,0.9,0.1,1);
+    
+    x_kam = lopta.x + 5;
+    y_kam = lopta.y + 10;
+    z_kam = lopta.z + 15;
+}
+
+
+
 void timer_movement(int value)
 {
-    if(value != TIMER_ID_levo && value != TIMER_ID_desno && value != TIMER_ID_napred)
+    if(value != TIMER_ID_levo && value != TIMER_ID_desno && value != TIMER_ID_napred && value != TIMER_ID_nazad)
         return;
+
+     ugao_rotacije += 20;
 
     //skretanje desno
     if(value == TIMER_ID_desno )
@@ -105,6 +188,17 @@ void timer_movement(int value)
         if(on_animation_napred)
                 glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_napred);	
     }
+    //kretanje unazad
+    else if(value == TIMER_ID_nazad)
+    {
+        on_animation_nazad = 0;
+        
+        glutPostRedisplay();
+        
+        if(on_animation_nazad)
+            glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_nazad);
+    }
+        
             
 }
 
@@ -117,7 +211,7 @@ void napravi_prepreke()
     y_trans = 0;
     z_trans = 0;
     
-    for(int i = 0 ; i < 99 ; i++)
+    for(int i = 0 ; i < 65 ; i++)
     {
         int ind  = rand() % 3;
         int ind2 = ind + 2;
@@ -130,7 +224,7 @@ void napravi_prepreke()
             x_trans = 30;
         
         
-        int size = (rand() % 15) + 8;
+        int size = (rand() % 15) + 6;
         
         y_trans = size;
         z_trans -= 100;
@@ -151,7 +245,7 @@ void napravi_prepreke()
             
                 glTranslatef(x_trans,y_trans,z_trans);
                 glutSolidCube(size);
-            
+                
             glPopMatrix();
         }
         
@@ -174,9 +268,9 @@ void napravi_prepreke()
             glPushMatrix();
                 glColor3f(0.3,1,1);
                 
-                glRotatef(145, 1, 0, 0);
                 glTranslatef(x_trans*(-1),y_trans,z_trans);
-                glutSolidTorus(5, 5, 36, 36);
+                glRotatef(145, 1, 0, 0);
+                glutSolidTorus(2, 5, 36, 36);
             glPopMatrix();
         }
         
@@ -187,12 +281,12 @@ void napravi_prepreke()
 
 
 
-void napravi_lift()
+void napravi_hodnik()
 {
+    glDisable(GL_LIGHTING);
     
     //LIFT
     glPushMatrix();
-                glDisable(GL_LIGHTING);
                 
                 glColor3f(0.5,0.5,0.5);
             
@@ -207,21 +301,19 @@ void napravi_lift()
                     glVertex3f(120,0,-DUZINA_STAZE);
                     
                     glTexCoord2f(1,1);
-                    glVertex3f(120,80,-DUZINA_STAZE);
+                    glVertex3f(120,VISINA_ORMARA,-DUZINA_STAZE);
                     
                     glTexCoord2f(0.2,1);
-                    glVertex3f(-120,80,-DUZINA_STAZE);
+                    glVertex3f(-120,VISINA_ORMARA,-DUZINA_STAZE);
                 glEnd();
                 glBindTexture(GL_TEXTURE_2D, 0);
                 
             
-                glEnable(GL_LIGHTING);
     glPopMatrix();
     
     
     //ORMARI
     glPushMatrix();
-                glDisable(GL_LIGHTING);
                 
                 glColor3f(1,1,1);
                 
@@ -230,16 +322,16 @@ void napravi_lift()
                     glNormal3f(1,1,1);
                 
                     glTexCoord2f(0,0);
-                    glVertex3f(-120,0,-DUZINA_STAZE+300);
+                    glVertex3f(-120,0,0);
                     
-                    glTexCoord2f(1,0);
+                    glTexCoord2f(30,0);
                     glVertex3f(-120,0,-DUZINA_STAZE);
                     
-                    glTexCoord2f(1,1);
-                    glVertex3f(-120,50,-DUZINA_STAZE);
+                    glTexCoord2f(30,1);
+                    glVertex3f(-120,VISINA_ORMARA,-DUZINA_STAZE);
                     
                     glTexCoord2f(0,1);
-                    glVertex3f(-120,50,-DUZINA_STAZE+300);
+                    glVertex3f(-120,VISINA_ORMARA,0);
                 glEnd();
                 glBindTexture(GL_TEXTURE_2D, 0);
                 
@@ -248,21 +340,140 @@ void napravi_lift()
                     glNormal3f(1,1,1);
                 
                     glTexCoord2f(0,0);
-                    glVertex3f(120,0,-DUZINA_STAZE+300);
+                    glVertex3f(120,0,0);
                     
-                    glTexCoord2f(1,0);
+                    glTexCoord2f(30,0);
                     glVertex3f(120,0,-DUZINA_STAZE);
                     
-                    glTexCoord2f(1,1);
-                    glVertex3f(120,50,-DUZINA_STAZE);
+                    glTexCoord2f(30,1);
+                    glVertex3f(120,VISINA_ORMARA,-DUZINA_STAZE);
                     
                     glTexCoord2f(0,1);
-                    glVertex3f(120,50,-DUZINA_STAZE+300);
+                    glVertex3f(120,VISINA_ORMARA,0);
                 glEnd();
                 glBindTexture(GL_TEXTURE_2D, 0);
                 
-                glEnable(GL_LIGHTING);
     glPopMatrix();
+    
+    
+    //PLAFON
+    glPushMatrix();
+                
+                glColor3f(1,1,1);
+                
+                glBindTexture(GL_TEXTURE_2D, names[2]);
+                glBegin(GL_QUADS);
+                    glNormal3f(1,1,1);
+                
+                    glTexCoord2f(0,0);
+                    glVertex3f(-120,VISINA_ORMARA,0);
+                    
+                    glTexCoord2f(20,0);
+                    glVertex3f(-120,VISINA_ORMARA,-DUZINA_STAZE);
+                    
+                    glTexCoord2f(20,1);
+                    glVertex3f(120,VISINA_ORMARA,-DUZINA_STAZE);
+                    
+                    glTexCoord2f(0,1);
+                    glVertex3f(120,VISINA_ORMARA,0);
+                    
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
+                
+    glPopMatrix();
+    
+    
+    //HEMIJSKI FAKULTET ~ eksplozija
+    glPushMatrix();
+                
+                glColor3f(1,1,1);
+    
+                glBindTexture(GL_TEXTURE_2D, names[3]);
+                glBegin(GL_POLYGON);
+                    glNormal3f(1,1,1);
+                
+                    glTexCoord2f(0,0);
+                    glVertex3f(-118,0,-1300);
+                    
+                    glTexCoord2f(1,0);
+                    glVertex3f(-118,0,-1520);
+                    
+                    glTexCoord2f(1,1);
+                    glVertex3f(-118,VISINA_ORMARA,-1520);
+                    
+                    glTexCoord2f(0,1);
+                    glVertex3f(-118,VISINA_ORMARA,-1300);
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
+                
+                glBindTexture(GL_TEXTURE_2D, names[3]);
+                glBegin(GL_POLYGON);
+                    glNormal3f(1,1,1);
+                
+                    glTexCoord2f(0,0);
+                    glVertex3f(-118,0,-2870);
+                    
+                    glTexCoord2f(1,0);
+                    glVertex3f(-118,0,-3220);
+                    
+                    glTexCoord2f(1,1);
+                    glVertex3f(-118,VISINA_ORMARA,-3220);
+                    
+                    glTexCoord2f(0,1);
+                    glVertex3f(-118,VISINA_ORMARA,-2870);
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
+                
+                glBindTexture(GL_TEXTURE_2D, names[3]);
+                glBegin(GL_POLYGON);
+                    glNormal3f(1,1,1);
+                
+                    glTexCoord2f(0,0);
+                    glVertex3f(-118,0,-4270);
+                    
+                    glTexCoord2f(1,0);
+                    glVertex3f(-118,0,-4550);
+                    
+                    glTexCoord2f(1,1);
+                    glVertex3f(-118,VISINA_ORMARA,-4550);
+                    
+                    glTexCoord2f(0,1);
+                    glVertex3f(-118,VISINA_ORMARA,-4270);
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
+                
+    glPopMatrix();
+    
+    
+    //STUDENTSKA SLUZBA
+    glPushMatrix();
+                
+                glColor3f(1,1,1);
+                
+                glBindTexture(GL_TEXTURE_2D, names[4]);
+                glBegin(GL_QUADS);
+                    glNormal3f(1,1,1);
+                
+                    glTexCoord2f(0,0);
+                    glVertex3f(119,0,-3860);
+                    
+                    glTexCoord2f(1,0);
+                    glVertex3f(119,0,-4028);
+                    
+                    glTexCoord2f(1,1);
+                    glVertex3f(119,VISINA_ORMARA,-4028);
+                    
+                    glTexCoord2f(0,1);
+                    glVertex3f(119,VISINA_ORMARA,-3860);
+                    
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
+                
+                
+    glPopMatrix();
+    
+    
+    glEnable(GL_LIGHTING);
     
 }
 
@@ -271,13 +482,18 @@ void napravi_lift()
 
 static void on_display(void)
 {
+    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    
     
     //Kamera prati lopticu
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     gluLookAt(
-        7*cos(beta)*cos(alfa)-5, 7*cos(beta)*sin(alfa)+35, 7*sin(beta)+lopta.z+30,
+        7*cos(beta)*cos(alfa)+x_kam, 
+        7*cos(beta)*sin(alfa)+y_kam,
+        7*sin(beta)+lopta.z+z_kam,
         0, 5 ,lopta.z+5,
         0, 1, 0);
     
@@ -316,10 +532,10 @@ static void on_display(void)
         
         
         glTranslatef(lopta.x, lopta.y, lopta.z );
+        glRotatef(ugao_rotacije , 1 , 0 , 0);
         glColor3f(0,0.5,0.1);
         glutWireSphere(7,350,350);
         
-
     glPopMatrix();
     
     
@@ -343,6 +559,7 @@ static void on_display(void)
         
     glPopMatrix();
     
+    
     //leva linija
     glPushMatrix();
         
@@ -360,6 +577,7 @@ static void on_display(void)
             glVertex3f(-120,   0, -DUZINA_STAZE);
             glVertex3f(-30,   0, -DUZINA_STAZE);
         glEnd();
+        
     glPopMatrix();
     
     
@@ -379,15 +597,53 @@ static void on_display(void)
             glVertex3f( 120,   0, -DUZINA_STAZE);
             glVertex3f( 30,   0, -DUZINA_STAZE);
         glEnd();
+
     glPopMatrix();
     
-    napravi_prepreke();
-    napravi_lift();
     
+
+    napravi_prepreke();
+    
+    napravi_hodnik();
+    
+        
     //Pomeranje loptice napred prilikom svakog pokreta levo ili desno
-    lopta.z -= 10;
+    //Osim ako se udje u hack_screen
+    if(lopta.z <= 10)
+        lopta.z -= DUZINA_KORAKA;
+    
     glTranslatef(0,0,lopta.z);
     
+    char ispis[100];
+    int preostali_broj_poteza = BROJ_DOZVOLJENIH_POTEZA-brojac_poteza;
+    
+    
+    if(preostali_broj_poteza > 0 && (lopta.z < 40 && lopta.z > DUZINA_STAZE*(-1)))
+    {
+        sprintf(ispis, "PREOSTALI BROJ POTEZA: %d" ,preostali_broj_poteza);
+    }
+    else if(preostali_broj_poteza <= 0)// && (lopta.z > DUZINA_STAZE*(-1) && lopta.z < 40))
+    {
+        sprintf(ispis, "KRAJ IGRE!");
+        
+        game_over_screen();
+    }
+    else if(lopta.z >= 40 && preostali_broj_poteza > 0)
+    {
+        sprintf(ispis, "LIFT HEMIJSKOG");
+        
+        hack_screen();
+    }
+    else if(lopta.z <= DUZINA_STAZE*(-1) && preostali_broj_poteza >= 0)
+    {
+        sprintf(ispis, "USLI STE U LIFT");
+        
+        winner_screen();
+    }
+    
+    drawString(55,20,-20,ispis);
+    
+
     glutSwapBuffers();
 }
 
@@ -433,21 +689,33 @@ static void initialize(void)
               GL_REPLACE
             );
     
-    //TODO: Ponavljanje teksture
-    
     image = image_init(0,0);
+    
     
     //ORMARI
     image_read(image,FILENAME1);
-    glGenTextures(2,names);
+    glGenTextures(5,names);
     
     glBindTexture(GL_TEXTURE_2D,names[1]);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP);//GL_REPEAT
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);//GL_REPEAT
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
         glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,image->width,image->height,0,GL_RGB,GL_UNSIGNED_BYTE,image->pixels);
     glBindTexture(GL_TEXTURE_2D,0);
+    
+    
+    //HEMIJSKI FAKULTET
+    image_read(image,FILENAME3);
+    
+    glBindTexture(GL_TEXTURE_2D,names[3]);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,image->width,image->height,0,GL_RGB,GL_UNSIGNED_BYTE,image->pixels);
+    glBindTexture(GL_TEXTURE_2D,0);
+    
     
     //LIFT
     image_read(image,FILENAME0);
@@ -460,11 +728,33 @@ static void initialize(void)
         glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,image->width,image->height,0,GL_RGB,GL_UNSIGNED_BYTE,image->pixels);
     glBindTexture(GL_TEXTURE_2D,0);
     
+    //STUDENTSKA SLUZBA
+    image_read(image,FILENAME4);
+    
+    glBindTexture(GL_TEXTURE_2D,names[4]);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,image->width,image->height,0,GL_RGB,GL_UNSIGNED_BYTE,image->pixels);
+    glBindTexture(GL_TEXTURE_2D,0);
+    
+    //PLAFON
+    image_read(image,FILENAME2);
+    
+    glBindTexture(GL_TEXTURE_2D,names[2]);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,image->width,image->height,0,GL_RGB,GL_UNSIGNED_BYTE,image->pixels);
+    glBindTexture(GL_TEXTURE_2D,0);
+      
    
     image_done(image);
     
     
-    
+    //Vrednosti uglova koji se koriste za pomeranje kamere
     alfa = 10;
     delta_alfa = pi/90;
     
@@ -484,8 +774,10 @@ static void on_keyboard(unsigned char key, int x, int y)
         case 27:
             exit(0);
             break;
+        //Skretanje levo
         case 'A':
         case 'a':
+                brojac_poteza++;
                 if(!on_animation_levo )
                 {
                     lopta.x -= lopta.kraj;
@@ -493,15 +785,18 @@ static void on_keyboard(unsigned char key, int x, int y)
                         lopta.x = -40;
                     
                     if(lopta.x < 0)
-                        lopta.z -= 10;
+                        lopta.z -= DUZINA_KORAKA;
                     
                     
                     glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_levo);
                     on_animation_levo = 1;
                 }
             break;
+        
+        //Skretanje desno
         case 'D':
         case 'd':
+                brojac_poteza++;
                 if(!on_animation_desno)
                 {   
                     lopta.x += lopta.kraj;
@@ -509,22 +804,39 @@ static void on_keyboard(unsigned char key, int x, int y)
                         lopta.x = 40;
                     
                     if(lopta.x > 0)
-                        lopta.z -= 10;
+                        lopta.z -= DUZINA_KORAKA;
                     
                     glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_desno);
                     on_animation_desno = 1;
                 }
             break;
+        
+        //Kretanje napred
         case 'W':
         case 'w':
+                brojac_poteza++;
                 if(!on_animation_napred)
                 {
-                    lopta.z -= 10;
-                    lopta.x += 0;
-                    
+                    if(lopta.z <= 0)
+                    {
+                        lopta.z -= DUZINA_KORAKA;
+                    }
                     glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_napred);
                     on_animation_napred = 1;
                 }
+            break;
+        
+        //Kretanje unazad
+        case 'S':
+        case 's':
+                if(!on_animation_nazad)
+                {
+                    lopta.z += 4*DUZINA_KORAKA;
+                }  
+                
+                glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_nazad);
+                on_animation_nazad = 1;
+                
             break;
         //Okretanje kamere oko z-ose(desno na levo)
         case 'E':
@@ -535,10 +847,12 @@ static void on_keyboard(unsigned char key, int x, int y)
             else if( alfa < -2*pi)
                 alfa += 2*pi;
             
-            lopta.z += 10;
+            //Da bi loptica ostala na svom mestu
+            lopta.z += DUZINA_KORAKA;
             
             glutPostRedisplay();
             break;
+        
         //Okretanje kamere oko z-ose(levo na desno)
         case 'Q':
         case 'q':
@@ -548,15 +862,30 @@ static void on_keyboard(unsigned char key, int x, int y)
             else if (alfa < 0) 
                 alfa += 2 * pi;
             
-            lopta.z += 10;
+            //Da bi loptica ostala na svom mestu
+            lopta.z += DUZINA_KORAKA;
             
             glutPostRedisplay();
             break;
-        //Resetovanje kamere na pocetne koordinate
+        
+        //Resetovanje kamere i loptice na pocetne koordinate
         case 'R':
         case 'r':
             alfa = 0; 
             beta = 0;
+            
+            x_kam = -5;
+            y_kam = 35;
+            z_kam = 30;
+            
+            lopta.x = 0;
+            lopta.y = 5;
+            lopta.z = 10;
+            
+            brojac_poteza = 0;
+            
+            glClearColor(0.5,0.5,0.5,1);
+            
             glutPostRedisplay();
         break;
     }
@@ -579,8 +908,6 @@ static void on_reshape(int width , int height)
 
 
 
-
-
 int main(int argc,char** argv)
 {
     glutInit(&argc,argv);
@@ -597,11 +924,14 @@ int main(int argc,char** argv)
     glutReshapeFunc(on_reshape);
     glutDisplayFunc(on_display);
     
+    
+    //Pocetna pozicija igraca
     lopta.x = 0;
     lopta.y = 5;
-    lopta.z = 12;
+    lopta.z = 10;
     lopta.kraj = 40;
 
+    
     glutFullScreen();
 
     glutMainLoop();

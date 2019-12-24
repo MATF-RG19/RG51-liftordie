@@ -85,6 +85,62 @@ typedef struct{
 POZICIJA lopta;//igrac
 
 
+void napravi_epruvetu()
+{
+    glEnable(GL_BLEND);
+    
+    glEnable(GL_COLOR_MATERIAL);
+    
+    //glBlendFunc( GL_ONE_MINUS_DST_COLOR , GL_DST_ALPHA );
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_COLOR );
+    
+    
+    //Cilindar
+    glPushMatrix();
+    
+        glColor4f(0.9,0.9,0.9,0.5);
+        
+        GLUquadric* q = gluNewQuadric();
+        
+        glTranslatef(-10,3,0);
+        glRotatef(-90,1,0,0);
+        glRotatef(45,0,1,0);
+        gluCylinder(q,3,3.11,18,50,50);
+
+    glPopMatrix();
+    
+    //Lopta
+    glPushMatrix();
+        
+        glColor3f(0.7,0.8,0.7);
+        glTranslatef(-10,3,0);
+        glRotatef(45,0,1,0);
+        glutSolidSphere(3,20,20);
+        
+    glPopMatrix();
+    
+    //Manji cilindar kao tecnost u epruveti
+    glPushMatrix();
+        
+        glColor3f(0.7,0.8,0.7);
+        
+        GLUquadric* q1 = gluNewQuadric();
+        
+        glTranslatef(-10,3.1,0.1);
+        glRotatef(-90,1,0,0);
+        glRotatef(45,0,1,0);
+        gluCylinder(q1,3.1,3.1,10.3,20,20);
+    
+    glPopMatrix();
+    
+    glDisable(GL_COLOR_MATERIAL);
+    
+    glDisable(GL_BLEND);
+          
+}
+
+
+
 //Timer za kretanje coveculjka
 void timer_covek(int value)
 {
@@ -509,6 +565,15 @@ void napravi_prepreke()
 void napravi_hodnik()
 {
     glDisable(GL_LIGHTING);
+
+    //Podizanje lifta kada clipping ravan dodje do kraja staze
+    if(clip_parametar <= -DUZINA_STAZE+1)
+        podizanje_lifta += 1;
+    
+    double clip_plane_lift[] = { 0 , -1 , 0 , VISINA_ORMARA - podizanje_lifta};
+    
+    glClipPlane(GL_CLIP_PLANE1 , clip_plane_lift);
+    glEnable(GL_CLIP_PLANE1);
     
     //LIFT
     glPushMatrix();
@@ -535,6 +600,8 @@ void napravi_hodnik()
                 
             
     glPopMatrix();
+
+    glDisable(GL_CLIP_PLANE1);
     
     
     //ORMARI

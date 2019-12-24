@@ -6,11 +6,13 @@
 #include "image.h"
 
 
-#define BROJ_DOZVOLJENIH_POTEZA      (400)
+#define BROJ_DOZVOLJENIH_POTEZA      (280)
 
 #define PI 3.1415926535897
-#define DUZINA_KORAKA      (10)   //Pomeranje po z osi 
-#define DUZINA_STAZE       (7000)
+#define BROJ_PREPREKA      (45)
+#define DUZINA_SKRETANJA   (50)   //Pomeranje po x osi
+#define DUZINA_KORAKA      (20)   //Pomeranje po z osi 
+#define DUZINA_STAZE       (9000)
 #define VISINA_ORMARA      (60)   //Isto sto i visina lifta
 
 
@@ -72,6 +74,13 @@ static int leg1_return;
 static int leg2_return;
 
 static float clip_parametar;
+static float podizanje_lifta = 0;
+
+static char ispis[100];
+
+static int ind_za_game_over = 0;
+
+static int preostali_broj_poteza;
 
 
 
@@ -85,13 +94,41 @@ typedef struct{
 POZICIJA lopta;//igrac
 
 
+ typedef struct{
+    float x;
+    float y;
+    float z;
+    
+    int tip_prepreke;
+    
+/*efekat:
+ * kocka        ==> kraj
+ * teapot       ==> broj_koraka + 5 
+ * torus        ==> na pocetak
+ * epruveta     ==> lopta.z + 30
+ * coveculjak   ==> lopta.z - 30
+ */    
+    int efekat;
+    
+    int traka;
+    
+    float r;
+    float g;
+    float b;
+    
+}PREPREKA;
+
+PREPREKA niz_prepreka[BROJ_PREPREKA];
+
+
+
+
 void napravi_epruvetu()
 {
     glEnable(GL_BLEND);
     
     glEnable(GL_COLOR_MATERIAL);
     
-    //glBlendFunc( GL_ONE_MINUS_DST_COLOR , GL_DST_ALPHA );
     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_COLOR );
     
     
@@ -105,7 +142,7 @@ void napravi_epruvetu()
         glTranslatef(-10,3,0);
         glRotatef(-90,1,0,0);
         glRotatef(45,0,1,0);
-        gluCylinder(q,3,3.11,18,50,50);
+        gluCylinder(q,3.04,3.04,18,50,50);
 
     glPopMatrix();
     
@@ -136,9 +173,9 @@ void napravi_epruvetu()
     glDisable(GL_COLOR_MATERIAL);
     
     glDisable(GL_BLEND);
-          
+    
+        
 }
-
 
 
 //Timer za kretanje coveculjka
@@ -222,8 +259,8 @@ void timer_covek(int value)
 
 
 //Crtanje coveculjka
-void napravi_coveculjka(int ind_kretanja)
-{
+void napravi_coveculjka(int ind_kretanja,float r,float g,float b)
+{    
     
     //Telo = kvadar
     glPushMatrix();
@@ -232,7 +269,7 @@ void napravi_coveculjka(int ind_kretanja)
         else if(ind_kretanja == 2)
             glColor3f(0.3 , 0.3 , 0.3);
         else
-            glColor3f(0.1 , 0.2 , 0.9);
+            glColor3f(0.1 +g, 0.2+r , 0.9-b);
     
         glTranslatef(-1.3, 0, 0.5);
         glScalef(0.3,0.30,0.5);
@@ -260,7 +297,7 @@ void napravi_coveculjka(int ind_kretanja)
         else if(ind_kretanja == 2)
             glColor3f(0.1 , 0.8 , 0.2);
         else
-            glColor3f(0.2 , 0.2 , 0.3);
+            glColor3f(0.2+r , 0.2+b , 0.3+g);
     
         glTranslatef(-1.1,0,0.55);
         
@@ -283,7 +320,7 @@ void napravi_coveculjka(int ind_kretanja)
         else if(ind_kretanja == 2)
             glColor3f(0.1 , 0.8 , 0.2);
         else
-            glColor3f(0.2 , 0.2 , 0.3);
+            glColor3f(0.2+r , 0.2+b , 0.3+g);
     
         glTranslatef(-1.5,0,0.55);
         
@@ -397,9 +434,9 @@ void timer_movement(int value)
 
     //Clipping ravan
     if(lopta.z > -300)//Na pocetku clipping ravan 'sporije' jede
-        clip_parametar -= 11;
-    else              //Kasnije clipping ravan ubrzava
         clip_parametar -= 21;
+    else              //Kasnije clipping ravan ubrzava
+        clip_parametar -= 29;
     
     if(clip_parametar <= -DUZINA_STAZE+1)
         clip_parametar = -DUZINA_STAZE+1;
@@ -410,7 +447,7 @@ void timer_movement(int value)
     //skretanje desno
     if(value == TIMER_ID_desno )
     {
-        if(lopta.x < 40)
+        if(lopta.x < DUZINA_SKRETANJA)
         {
             on_animation_desno = 0;
         
@@ -419,7 +456,7 @@ void timer_movement(int value)
             if(on_animation_desno)
                 glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_desno);	
         }
-        else if(lopta.x = 40)
+        else if(lopta.x = DUZINA_SKRETANJA)
         {
             lopta.z -= 10;
             
@@ -435,7 +472,7 @@ void timer_movement(int value)
     //skretanje levo
     else if(value == TIMER_ID_levo)
     {
-        if(lopta.x > -40)
+        if(lopta.x > -DUZINA_SKRETANJA)
         {
             on_animation_levo = 0;
         
@@ -444,7 +481,7 @@ void timer_movement(int value)
             if(on_animation_levo)
                 glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_levo);	
         }
-        else if(lopta.x == -40)
+        else if(lopta.x == -DUZINA_SKRETANJA)
         {
             lopta.z -= 10;
             
@@ -484,79 +521,118 @@ void timer_movement(int value)
 }
 
 
-//TODO: Trebaju mi koordinate prepreka.Ispravi ili napravi skroz novu funkciju.
+//Davanje osobina preprekama
 void napravi_prepreke()
 {
-    int x_trans,y_trans,z_trans;
-    x_trans = 0;
-    y_trans = 0;
-    z_trans = 0;
+    int rand_traka;
     
-    for(int i = 0 ; i < 65 ; i++)
+    int tip_rand;
+    
+    for( int i = 0 ; i < BROJ_PREPREKA ; i++)
     {
-        int ind  = rand() % 3;
-        int ind2 = ind + 2;
+        rand_traka = rand()%3;
+        tip_rand   = rand()%5;
         
-        if(ind == 0)//0 je leva traka
-            x_trans = -30;
-        else if(ind == 1)//1 je srednja traka
-            x_trans = 0;
-        else//desna traka
-            x_trans = 30;
+        //traka
+        niz_prepreka[i].traka = rand_traka;
         
+        //x
+        if(rand_traka == 0)
+            niz_prepreka[i].x = -DUZINA_SKRETANJA;
+        else if(rand_traka == 1)
+            niz_prepreka[i].x = 0;
+        else
+            niz_prepreka[i].x = DUZINA_SKRETANJA;
+
+        //y
+        niz_prepreka[i].y = 5;
         
-        int size = (rand() % 15) + 6;
+        //z
+        niz_prepreka[i].z =  (i+1)*200;
         
-        y_trans = size;
-        z_trans -= 100;
+        //tip_prepreke
+        niz_prepreka[i].tip_prepreke = tip_rand;
         
-        
-        float r,g,b;
-        
-        if(i % 2 == 0 && i % 5 != 0 && i % 10 != 0)
+        //efekat
+        switch(tip_rand)
         {
-            //Kocka = prepreka
-            glPushMatrix();
-                glDisable(GL_LIGHTING);
-                
-                r = (float)(rand()%10)/10;
-                g = (float)(rand()%10)/10;
-                b = (float)(rand()%10)/10;
-                glColor3f(r,g,b);
-            
-                glTranslatef(x_trans,y_trans,z_trans);
-                glutSolidCube(size);
-                
-            glPopMatrix();
+            case 0:
+                niz_prepreka[i].efekat = -1;//game over
+                break;
+            case 1:
+                niz_prepreka[i].efekat = 5 ;//broj_koraka + 5
+                break;
+            case 2:
+                niz_prepreka[i].efekat = 0;//isto sto i dugme R
+                break;
+            case 3:
+                niz_prepreka[i].efekat = 30;// lopta.z += 30;
+                break;
+            case 4:
+                niz_prepreka[i].efekat = -30;
+                break;
+            default:
+                break;
         }
         
-        //Cajnik = hemija
-        if(i % 10 == 0)
-        {
-            glPushMatrix();
-                glColor3f(0,0,0);
-                
-                glTranslatef(x_trans*(-1),y_trans,z_trans);
-                glutWireTeapot(7);
-            
-            glPopMatrix();
-        }
-        
-        
-        //Torus = obrazac
-       if(i % 5 == 0 && i % 10 != 0)
-       {
-            glPushMatrix();
-                glColor3f(0.3,1,1);
-                
-                glTranslatef(x_trans*(-1),y_trans,z_trans);
-                glRotatef(145, 1, 0, 0);
-                glutSolidTorus(2, 5, 36, 36);
-            glPopMatrix();
-        }
-        
-        glEnable(GL_LIGHTING);
+        //boja
+        niz_prepreka[i].r = (float)rand()/RAND_MAX + rand_traka/10.0;
+        niz_prepreka[i].g = (float)rand()/RAND_MAX + 2*rand_traka/10.0;
+        niz_prepreka[i].b = (float)rand()/RAND_MAX + rand_traka/10.0;
     }
+}
+
+
+//Crtanje prepreka
+void nacrtaj_prepreke()
+{
+    int i;
+    
+    glEnable(GL_COLOR_MATERIAL);
+    
+    for(i = 0 ; i < BROJ_PREPREKA ; i++)
+    {
+        glPushMatrix();
+            glColor3f(niz_prepreka[i].r,niz_prepreka[i].g,niz_prepreka[i].b);
+            
+            glTranslatef(niz_prepreka[i].x,niz_prepreka[i].y,-niz_prepreka[i].z);
+            
+            switch(niz_prepreka[i].tip_prepreke)
+            {
+            case 0:
+                glEnable(GL_COLOR_MATERIAL);
+                glutSolidCube(25);
+                glDisable(GL_COLOR_MATERIAL);
+                break;
+            case 1:
+                glutSolidTeapot(13);
+                break;
+            case 2:
+                glTranslatef(0,4,0);
+                glRotatef(145, 1, 0, 0);
+                glutSolidTorus(5, 8, 36, 36);
+                break;
+            case 3:
+                glDisable(GL_LIGHTING);
+                napravi_epruvetu();
+                glEnable(GL_LIGHTING);
+                break;
+            case 4:
+                glDisable(GL_LIGHTING);
+                glScalef(33,40,30);
+                glRotatef(-90 , 1,0,0);
+                napravi_coveculjka(0,niz_prepreka[i].r,niz_prepreka[i].g,niz_prepreka[i].b);
+                glEnable(GL_LIGHTING);
+                break;
+            default:
+                break;
+            }
+        glPopMatrix();
+    
+                
+    }
+    
+    
     
 }
 
@@ -565,11 +641,10 @@ void napravi_prepreke()
 void napravi_hodnik()
 {
     glDisable(GL_LIGHTING);
-
+    
     //Podizanje lifta kada clipping ravan dodje do kraja staze
     if(clip_parametar <= -DUZINA_STAZE+1)
         podizanje_lifta += 1;
-    
     double clip_plane_lift[] = { 0 , -1 , 0 , VISINA_ORMARA - podizanje_lifta};
     
     glClipPlane(GL_CLIP_PLANE1 , clip_plane_lift);
@@ -600,9 +675,8 @@ void napravi_hodnik()
                 
             
     glPopMatrix();
-
-    glDisable(GL_CLIP_PLANE1);
     
+    glDisable(GL_CLIP_PLANE1);
     
     //ORMARI
     glPushMatrix();
@@ -770,7 +844,7 @@ void napravi_hodnik()
         glTranslatef(119.3 , 0 , -3830);
         glScalef(29,42,32);
         glRotatef(-90 , 1,0,0);
-        napravi_coveculjka(0);
+        napravi_coveculjka(0,0,0,0);
     glPopMatrix();
     
     //Drugi covek u redu za STUDENTSKU SLUZBU - mase desnom rukom
@@ -781,7 +855,7 @@ void napravi_hodnik()
         glScalef(31,41,30);
         glRotatef(-90 , 1,0,0);
         glRotatef(180 , 0,0,1);
-        napravi_coveculjka(2);
+        napravi_coveculjka(2,0,0,0);
     glPopMatrix();
     
     //Covek u prvoj ekspolziji - imaju kretnju
@@ -790,7 +864,7 @@ void napravi_hodnik()
         glScalef(25,35,30);
         glRotatef(-90 , 1,0,0);
         glRotatef( 90 , 0,0,1);
-        napravi_coveculjka(1);
+        napravi_coveculjka(1,0,0,0);
     glPopMatrix();
     
     //Covek u trecoj ekspolziji - imaju kretnju
@@ -799,7 +873,7 @@ void napravi_hodnik()
         glScalef(27,40,32);
         glRotatef(-90 , 1,0,0);
         glRotatef( 90 , 0,0,1);
-        napravi_coveculjka(1);
+        napravi_coveculjka(1,0,0,0);
     glPopMatrix();
     
     
@@ -812,7 +886,6 @@ void napravi_hodnik()
 
 static void on_display(void)
 {
-    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     
@@ -864,7 +937,7 @@ static void on_display(void)
         glTranslatef(lopta.x, lopta.y, lopta.z );
         glRotatef(ugao_rotacije , 1 , 0 , 0);
         glColor3f(0,0.5,0.1);
-        glutWireSphere(7,350,350);
+        glutWireSphere(7,250,250);
         
     glPopMatrix();
     
@@ -931,9 +1004,10 @@ static void on_display(void)
     glPopMatrix();
     
     
-
-    napravi_prepreke();
-    
+    //Prepreke 
+    glPushMatrix();
+        nacrtaj_prepreke();
+    glPopMatrix();
     
     //Clipping ravan
     double clip_plane[] = {0,0,-1 ,clip_parametar};
@@ -943,10 +1017,13 @@ static void on_display(void)
         napravi_hodnik();
     glDisable(GL_CLIP_PLANE0);
     
+    
     //Loptica se sporije krece ako je clipping ravan prestigne
     if(clip_parametar<0 && lopta.z < 0 && clip_parametar < lopta.z)
     {
-        lopta.z += 5;
+        //U bocnim trakama napreduje za 20
+        //U srednjoj napreduje za 10
+        //lopta.z += 20;
     }
     
         
@@ -954,19 +1031,18 @@ static void on_display(void)
     //Pomeranje loptice napred prilikom svakog pokreta levo ili desno
     //Osim ako se udje u hack_screen
     if(lopta.z <= 10)
-        lopta.z -= DUZINA_KORAKA;
+        lopta.z -= 20;
     
     glTranslatef(0,0,lopta.z);
     
-    char ispis[100];
-    int preostali_broj_poteza = BROJ_DOZVOLJENIH_POTEZA-brojac_poteza;
+    preostali_broj_poteza = BROJ_DOZVOLJENIH_POTEZA-brojac_poteza;
     
     
     if(preostali_broj_poteza > 0 && (lopta.z < 40 && lopta.z > DUZINA_STAZE*(-1)))
     {
         sprintf(ispis, "PREOSTALI BROJ POTEZA: %d" ,preostali_broj_poteza);
     }
-    else if(preostali_broj_poteza <= 0)
+    else if(preostali_broj_poteza <= 0 || ind_za_game_over == 1)
     {
         sprintf(ispis, "KRAJ IGRE!");
         
@@ -989,9 +1065,10 @@ static void on_display(void)
     {
         
     }
-    
-    
+
+    //Ispis teksta
     drawString(55,20,-20,ispis);
+    
     
     
     
@@ -1005,6 +1082,8 @@ static void on_display(void)
 static void initialize(void)
 {
     glClearColor(0.75,0.75,0.75,0);
+    
+    srand(time(NULL));
     
     //Ambijentalna boja
     GLfloat light_ambient[] = { 0, 0, 0, 1 };
@@ -1121,7 +1200,111 @@ static void initialize(void)
     
     //Clipping ravan
     clip_parametar = 11;
+    
+    //Prepreke //TODO
+    napravi_prepreke();
 }
+
+
+
+/*1 ako udari kocku ==> game_over_screen
+ *0 za sve ostalo uz odgovarajuce promene pre glutPostRedisplay
+ * 
+ * Hocu da reaguje na 190 i 200 ; 390 i 400
+ */
+int provera_sudara()
+{
+    
+    int trenutna_pozicija_z = abs((int)lopta.z);
+    int trenutna_pozicija_z1=trenutna_pozicija_z+20;
+    int trenutna_pozicija_z2=trenutna_pozicija_z+10;
+    int trenutna_pozicija_z3=trenutna_pozicija_z+30;
+    int trenutna_pozicija_x = (int)lopta.x;
+    
+    //printf("x:%d ; z:%d ; potezi:%d\n",trenutna_pozicija_x,trenutna_pozicija_z,preostali_broj_poteza);
+    
+    int i;
+    
+    if(trenutna_pozicija_z != 0 && 
+        (trenutna_pozicija_z%200 == 0 || trenutna_pozicija_z1%200 == 0 ||trenutna_pozicija_z2%200 == 0 || trenutna_pozicija_z3%200 == 0) )
+    {
+        if(trenutna_pozicija_z%200 == 0)
+            i = (trenutna_pozicija_z / 200) - 1;
+        else if(trenutna_pozicija_z2%200 == 0)
+            i = (trenutna_pozicija_z2 / 200) - 1;
+        else if(trenutna_pozicija_z2%200 == 0)
+            i = (trenutna_pozicija_z1 / 200) - 1;
+        else
+            i = (trenutna_pozicija_z3 / 200) - 1;
+        
+        //printf("indeks:%d ;\n",i);
+        
+        //SUDAR(ovaj dodatni slucaj u zagradi je zbog dodatnih translacija coveculjka)
+        if(((int)niz_prepreka[i].x == trenutna_pozicija_x)
+            || (niz_prepreka[i].tip_prepreke == 4 && niz_prepreka[i].x*trenutna_pozicija_x >=0)
+        )
+        {
+            if(niz_prepreka[i].tip_prepreke == 0)//reseno
+            {
+                ind_za_game_over = 1;
+                sprintf(ispis, "KRAJ IGRE!");
+                //printf("kocka\n");
+                glutPostRedisplay();
+                return 1;
+            }
+            else if(niz_prepreka[i].tip_prepreke == 1)//reseno
+            {
+                brojac_poteza -= 10;
+                //printf("cajnik\n");
+                glutPostRedisplay();
+                return 0;
+            }
+            else if(niz_prepreka[i].tip_prepreke == 2)//reseno
+            {
+                //printf("torus\n");
+                alfa = 0; 
+                beta = 0;
+            
+                x_kam = -5;
+                y_kam = 35;
+                z_kam = 30;
+                
+                lopta.x = 0;
+                lopta.y = 5;
+                lopta.z = 0;
+                
+                brojac_poteza = 0;
+                
+                //clip_parametar = 11; 
+                
+                glClearColor(0.5,0.5,0.5,1);
+                
+                glutPostRedisplay();
+                    
+                return 0;
+            }
+            else if(niz_prepreka[i].tip_prepreke == 3)//reseno
+            {
+                lopta.z -= 40;
+                //printf("epruveta\n");
+                glutPostRedisplay();
+                return 0;
+            }
+            else if(niz_prepreka[i].tip_prepreke == 4)//reseno
+            {
+                clip_parametar -= 10;
+                brojac_poteza += 10;
+                //printf("coveculjak\n");
+                glutPostRedisplay();
+                return 0;
+            }
+        }
+    }
+            
+    
+    return 0;
+}
+
 
 
 
@@ -1141,11 +1324,11 @@ static void on_keyboard(unsigned char key, int x, int y)
                 if(!on_animation_levo )
                 {
                     lopta.x -= lopta.kraj;
-                    if(lopta.x < -40)
-                        lopta.x = -40;
+                    if(lopta.x < -DUZINA_SKRETANJA)
+                        lopta.x = -DUZINA_SKRETANJA;
                     
                     if(lopta.x < 0)
-                        lopta.z -= DUZINA_KORAKA;
+                        lopta.z -= DUZINA_KORAKA-30;
                     
                     
                     glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_levo);
@@ -1153,6 +1336,18 @@ static void on_keyboard(unsigned char key, int x, int y)
                     
                     on_animation_levo = 1;
                     covek_aktivan     = 1;
+                    
+                    glutPostRedisplay();
+                    
+                    if(provera_sudara())
+                    {
+                        sprintf(ispis, "KRAJ IGRE!");
+                        game_over_screen();
+                    }
+                    else
+                        glutPostRedisplay();
+                    
+                    
                 }
             break;
         
@@ -1163,17 +1358,27 @@ static void on_keyboard(unsigned char key, int x, int y)
                 if(!on_animation_desno)
                 {   
                     lopta.x += lopta.kraj;
-                    if(lopta.x > 40)
-                        lopta.x = 40;
+                    if(lopta.x > DUZINA_SKRETANJA)
+                        lopta.x = DUZINA_SKRETANJA;
                     
                     if(lopta.x > 0)
-                        lopta.z -= DUZINA_KORAKA;
+                        lopta.z -= DUZINA_KORAKA-30;
                     
                     glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_desno);
                     glutTimerFunc(TIMER_INTERVAL1, timer_covek    , TIMER_ID_covek);
                     
                     on_animation_desno = 1;
                     covek_aktivan     = 1;
+                    
+                    if(provera_sudara())
+                    {
+                        sprintf(ispis, "KRAJ IGRE!");
+                        game_over_screen();
+                    }
+                    else
+                        glutPostRedisplay();
+                    
+                    glutPostRedisplay();
                 }
             break;
         
@@ -1183,16 +1388,22 @@ static void on_keyboard(unsigned char key, int x, int y)
                 brojac_poteza++;
                 if(!on_animation_napred)
                 {
-                    if(lopta.z <= 0)
-                    {
-                        lopta.z -= DUZINA_KORAKA;
-                    }
                     glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_napred);
                     glutTimerFunc(TIMER_INTERVAL1, timer_covek    , TIMER_ID_covek);
                     
                     on_animation_napred = 1;
                     covek_aktivan     = 1;
+                    
+                    glutPostRedisplay();
                 }
+                
+                if(provera_sudara())
+                    {
+                        sprintf(ispis, "KRAJ IGRE!");
+                        game_over_screen();
+                    }
+                    else
+                        glutPostRedisplay();
             break;
         
         //Kretanje unazad
@@ -1200,12 +1411,14 @@ static void on_keyboard(unsigned char key, int x, int y)
         case 's':
                 if(!on_animation_nazad)
                 {
-                    lopta.z += 5*DUZINA_KORAKA;
+                    lopta.z += 4*DUZINA_KORAKA;
                 }  
                 
                 glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_nazad);
 
                 on_animation_nazad = 1;
+                
+                glutPostRedisplay();
                 
             break;
         //Okretanje kamere oko z-ose(desno na levo)
@@ -1250,7 +1463,7 @@ static void on_keyboard(unsigned char key, int x, int y)
             
             lopta.x = 0;
             lopta.y = 5;
-            lopta.z = 10;
+            lopta.z = 0;
             
             brojac_poteza = 0;
             
@@ -1300,8 +1513,8 @@ int main(int argc,char** argv)
     //Pocetna pozicija igraca
     lopta.x = 0;
     lopta.y = 5;
-    lopta.z = 10;
-    lopta.kraj = 40;
+    lopta.z = -20;
+    lopta.kraj = DUZINA_SKRETANJA;
 
     
     glutFullScreen();
@@ -1310,3 +1523,5 @@ int main(int argc,char** argv)
 
     return 0;
 }
+
+

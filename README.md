@@ -23,7 +23,7 @@ Broj poteza je ograničen, pa su nam zato potrebni čajnici(dodatni potezi) i ep
 
 
 ## :wrench: Instalacija i pokretanje:
-1.Preuzmite,klonirajte folder pomocu komande:  git clone https://github.com/MATF-RG19/RG51-liftordie.git 
+1.Preuzmite,klonirajte folder pomocu komande:  git clone https://github.com/MATF-RG19/RG51-liftordie.git   
 2.Pozicionirajte se u direktorijum RG51-liftordie  
 3.Pokrenite Makefile komandom make   
 4.Pokrenite igricu komandom ./liftordie  

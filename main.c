@@ -6,7 +6,7 @@
 #include "image.h"
 
 
-#define BROJ_DOZVOLJENIH_POTEZA      (280)
+#define BROJ_DOZVOLJENIH_POTEZA      (390)
 
 #define PI 3.1415926535897
 #define BROJ_PREPREKA      (45)
@@ -166,7 +166,7 @@ void napravi_epruvetu()
         glTranslatef(-10,3.1,0.1);
         glRotatef(-90,1,0,0);
         glRotatef(45,0,1,0);
-        gluCylinder(q1,3.1,3.1,10.3,20,20);
+        gluCylinder(q1,3.14,3.14,10.3,20,20);
     
     glPopMatrix();
     
@@ -858,19 +858,19 @@ void napravi_hodnik()
         napravi_coveculjka(2,0,0,0);
     glPopMatrix();
     
-    //Covek u prvoj ekspolziji - imaju kretnju
+    //Covek u prvoj ekspolziji - ima kretnju
     glPushMatrix();
-        glTranslatef(-119.5 , 0 , -1356);
-        glScalef(25,35,30);
+        glTranslatef(-119 , 0 , -1366);
+        glScalef(30,45,39);
         glRotatef(-90 , 1,0,0);
         glRotatef( 90 , 0,0,1);
         napravi_coveculjka(1,0,0,0);
     glPopMatrix();
     
-    //Covek u trecoj ekspolziji - imaju kretnju
+    //Covek u trecoj ekspolziji - ima kretnju
     glPushMatrix();
-        glTranslatef(-119.5 , 0 , -5343);
-        glScalef(27,40,32);
+        glTranslatef(-118.7 , 0 , -5346);
+        glScalef(28,44,36);
         glRotatef(-90 , 1,0,0);
         glRotatef( 90 , 0,0,1);
         napravi_coveculjka(1,0,0,0);
@@ -1037,29 +1037,34 @@ static void on_display(void)
     
     preostali_broj_poteza = BROJ_DOZVOLJENIH_POTEZA-brojac_poteza;
     
-    
-    if(preostali_broj_poteza > 0 && (lopta.z < 40 && lopta.z > DUZINA_STAZE*(-1)))
+    //TODO
+    if(preostali_broj_poteza > 0 && (lopta.z < 40 && lopta.z > DUZINA_STAZE*(-1)) && podizanje_lifta < VISINA_ORMARA)
     {
         sprintf(ispis, "PREOSTALI BROJ POTEZA: %d" ,preostali_broj_poteza);
     }
-    else if(preostali_broj_poteza <= 0 || ind_za_game_over == 1)
+    //TODO
+    else if(preostali_broj_poteza <= 0 || ind_za_game_over == 1 || podizanje_lifta > VISINA_ORMARA || (preostali_broj_poteza <= 0 && lopta.z < DUZINA_STAZE*(-1)))
     {
-        sprintf(ispis, "KRAJ IGRE!");
-        
+        if(podizanje_lifta > VISINA_ORMARA)
+            sprintf(ispis, "LIFT JE OTISAO,ALI TE STEPENICE CEKAJU! :(");
+        else if(ind_za_game_over == 1)
+            sprintf(ispis, "KRAJ IGRE!");
         game_over_screen();
     }
     else if(lopta.z >= 40 && preostali_broj_poteza > 0)
     {
-        sprintf(ispis, "LIFT HEMIJSKOG");
+        sprintf(ispis, "LIFT HEMIJSKOG FAKULTETA ");
         
         hack_screen();
     }
-    else if(lopta.z <= DUZINA_STAZE*(-1) && preostali_broj_poteza >= 0)
+    //TODO
+    else if(preostali_broj_poteza > 0 && lopta.z <= DUZINA_STAZE*(-1) && podizanje_lifta < VISINA_ORMARA)
     {
-        sprintf(ispis, "USLI STE U LIFT");
+        sprintf(ispis, "USLI STE U LIFT!!! :)");
         
         winner_screen();
     }
+    
     
     if(clip_parametar<0 && lopta.z < 0 && clip_parametar < lopta.z)
     {
@@ -1068,9 +1073,6 @@ static void on_display(void)
 
     //Ispis teksta
     drawString(55,20,-20,ispis);
-    
-    
-    
     
     glutSwapBuffers();
 }
@@ -1206,12 +1208,6 @@ static void initialize(void)
 }
 
 
-
-/*1 ako udari kocku ==> game_over_screen
- *0 za sve ostalo uz odgovarajuce promene pre glutPostRedisplay
- * 
- * Hocu da reaguje na 190 i 200 ; 390 i 400
- */
 int provera_sudara()
 {
     
@@ -1221,7 +1217,7 @@ int provera_sudara()
     int trenutna_pozicija_z3=trenutna_pozicija_z+30;
     int trenutna_pozicija_x = (int)lopta.x;
     
-    //printf("x:%d ; z:%d ; potezi:%d\n",trenutna_pozicija_x,trenutna_pozicija_z,preostali_broj_poteza);
+    printf("x:%d ; z:%d ; potezi:%d\n",trenutna_pozicija_x,trenutna_pozicija_z,preostali_broj_poteza);
     
     int i;
     
@@ -1244,7 +1240,7 @@ int provera_sudara()
             || (niz_prepreka[i].tip_prepreke == 4 && niz_prepreka[i].x*trenutna_pozicija_x >=0)
         )
         {
-            if(niz_prepreka[i].tip_prepreke == 0)//reseno
+            if(niz_prepreka[i].tip_prepreke == 0)//kocka
             {
                 ind_za_game_over = 1;
                 sprintf(ispis, "KRAJ IGRE!");
@@ -1252,14 +1248,14 @@ int provera_sudara()
                 glutPostRedisplay();
                 return 1;
             }
-            else if(niz_prepreka[i].tip_prepreke == 1)//reseno
+            else if(niz_prepreka[i].tip_prepreke == 1)//cajnik
             {
                 brojac_poteza -= 10;
                 //printf("cajnik\n");
                 glutPostRedisplay();
                 return 0;
             }
-            else if(niz_prepreka[i].tip_prepreke == 2)//reseno
+            else if(niz_prepreka[i].tip_prepreke == 2)//torus
             {
                 //printf("torus\n");
                 alfa = 0; 
@@ -1275,22 +1271,20 @@ int provera_sudara()
                 
                 brojac_poteza = 0;
                 
-                //clip_parametar = 11; 
-                
                 glClearColor(0.5,0.5,0.5,1);
                 
                 glutPostRedisplay();
                     
                 return 0;
             }
-            else if(niz_prepreka[i].tip_prepreke == 3)//reseno
+            else if(niz_prepreka[i].tip_prepreke == 3)//epruveta
             {
                 lopta.z -= 40;
                 //printf("epruveta\n");
                 glutPostRedisplay();
                 return 0;
             }
-            else if(niz_prepreka[i].tip_prepreke == 4)//reseno
+            else if(niz_prepreka[i].tip_prepreke == 4)//coveculjak
             {
                 clip_parametar -= 10;
                 brojac_poteza += 10;
@@ -1398,12 +1392,12 @@ static void on_keyboard(unsigned char key, int x, int y)
                 }
                 
                 if(provera_sudara())
-                    {
+                {
                         sprintf(ispis, "KRAJ IGRE!");
                         game_over_screen();
-                    }
-                    else
-                        glutPostRedisplay();
+                }
+                else
+                    glutPostRedisplay();
             break;
         
         //Kretanje unazad
@@ -1468,6 +1462,10 @@ static void on_keyboard(unsigned char key, int x, int y)
             brojac_poteza = 0;
             
             clip_parametar = 11; 
+
+            podizanje_lifta = 0;
+            
+            ind_za_game_over = 0;
             
             glClearColor(0.5,0.5,0.5,1);
             
@@ -1508,6 +1506,8 @@ int main(int argc,char** argv)
     glutKeyboardFunc(on_keyboard);
     glutReshapeFunc(on_reshape);
     glutDisplayFunc(on_display);
+    
+    glutSetKeyRepeat(GLUT_KEY_REPEAT_ON);
     
     
     //Pocetna pozicija igraca

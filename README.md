@@ -1,4 +1,6 @@
 # RG51-liftordie
+---
+
 ## :sound: Opis igrice:
 LiftOrDie je igrica koja predstavlja svakodnevnu borbu studenata Matematičkog fakulteta, stići na lift ili ići stepenicama kojima nema kraja. Put do cilja, odnosno lifta, nije lak, treba izbeći prepreke i pokupiti odredjene objekte kako bi bili bliži uspehu.  
 Broj poteza je ograničen, pa su nam zato potrebni čajnici(dodatni potezi) i epruvete(trenutno ubrzanje). Ljudi i torusi nam otežavaju put(oduzimanjem poteza odnosno vraćanjem na početak) dok sudar sa kockom predstavlja neuspeh.

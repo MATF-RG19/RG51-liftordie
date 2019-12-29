@@ -5,7 +5,7 @@
 #include <time.h>
 #include "image.h"
 
-
+//Broj 290 je dobijen kao prosecan broj nakon testiranja igrice
 #define BROJ_DOZVOLJENIH_POTEZA      (290)
 
 #define PI 3.1415926535897
@@ -43,6 +43,8 @@ static int on_animation_levo   = 0;
 static int on_animation_desno  = 0;
 static int on_animation_napred = 0;
 static int on_animation_nazad  = 0;
+
+//Indikator za aktivnost coveculjka
 static int covek_aktivan  = 0;
 
 
@@ -54,7 +56,7 @@ static float delta_alfa , delta_beta;
 //Ugao rotacije loptice
 static float ugao_rotacije = 0;
 
-//koordinate za kameru 
+//koordinate za kameru na pocetku(za pocetni ekran)
 static int x_kam = 0;
 static int y_kam = 310;
 static int z_kam = 315;
@@ -65,7 +67,7 @@ static int brojac_poteza = 0;
 static int preostali_broj_poteza;
 
 
-//Kretanje coveculjka
+//Kretanje coveculjka(krajnji uglovi i indikatori da li taj deo treba da se vraca)
 static double arm1_angle;
 static double arm2_angle;
 static double leg1_angle;
@@ -76,7 +78,7 @@ static int arm2_return;
 static int leg1_return;
 static int leg2_return;
 
-//Clipping ravan za lift
+//Clipping ravan za lift (krece kada clipping ravan za hodnik dodje do kraja) 
 static float clip_parametar;
 static float podizanje_lifta = 0;
 
@@ -105,15 +107,14 @@ typedef struct{
     float y;
     float z;
     
+    /*Tip:              Efekat:
+    * kocka        ==> kraj
+    * teapot       ==> preostali_broj_poteza + 10 
+    * torus        ==> vraca na pocetak(sve osim clipping ravni hodnika)
+    * epruveta     ==> ubrazanje
+    * coveculjak   ==> preostali_broj_poteza - 10
+    */   
     int tip_prepreke;
-    
-/*Tip:
- * kocka        ==> kraj
- * teapot       ==> preostali_broj_poteza + 10 
- * torus        ==> na pocetak
- * epruveta     ==> ubrazanje
- * coveculjak   ==> preostali_broj_poteza - 10
- */    
     
     int traka;
     
@@ -159,7 +160,47 @@ void start_screen()
             
     glPopMatrix();
 }
+
+//Ekran u slucaju neuspeha(istroseni koraci/sudar sa preprekom/nestajanje lifta)
+void game_over_screen()
+{
+    glClearColor(0,0,0,1);
     
+    //Kako se ovaj slucaj ne bi poklopilo sa ostavim slucajevima
+    lopta.z = -2*DUZINA_STAZE;
+ 
+    x_kam = lopta.x + 5;
+    y_kam = lopta.y + 10;
+    z_kam = lopta.z + 15;
+    
+}
+
+
+//Mali hack: Ako se krene unazad (i udje u lift za hemijski fakultet) ==> uspeh
+void hack_screen()
+{
+    glClearColor(0.5,0,0,1);
+    
+    x_kam = lopta.x + 10;
+    y_kam = 5*cos(ugao_rotacije*PI/180);
+    z_kam = 1.2*lopta.z + 30;
+    
+}
+
+//Ukoliko se udje u lift na kraju hodnika ==> uspeh
+void winner_screen()
+{
+    glClearColor(0.1,0.9,0.1,1);
+    
+    //Kako ne bi bilo prelaza iz winner_screen u game_over_screen
+    brojac_poteza = BROJ_DOZVOLJENIH_POTEZA/2;
+    
+    x_kam = lopta.x + 5;
+    y_kam = lopta.y + 10;
+    z_kam = lopta.z + 15;
+}
+  
+  
 //Jedan tip prepreke jeste epruveta(asocijacija na Hemijski fakultet)
 void napravi_epruvetu()
 {
@@ -170,7 +211,7 @@ void napravi_epruvetu()
     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_COLOR );
     
     
-    //Cilindar
+    //Cilindar(sve osim dna epruvete)
     glPushMatrix();
     
         glColor4f(0.9,0.9,0.9,0.5);
@@ -184,7 +225,7 @@ void napravi_epruvetu()
 
     glPopMatrix();
     
-    //Lopta
+    //Lopta(dno epruvete)
     glPushMatrix();
         
         glColor3f(0.7,0.8,0.7);
@@ -428,53 +469,17 @@ void drawString(float x, float y, float z, char *string ) {
 }
 
 
-//Ekran u slucaju neuspeha(istroseni koraci/sudar sa preprekom/nestajanje lifta)
-void game_over_screen()
-{
-    glClearColor(0,0,0,1);
-    
-    //Kako se ovaj slucaj ne bi poklopilo sa ostavim slucajevima
-    lopta.z = -2*DUZINA_STAZE;
- 
-    x_kam = lopta.x + 5;
-    y_kam = lopta.y + 10;
-    z_kam = lopta.z + 15;
-    
-}
-
-//Mali hack: Ako se krene unazad (i udje u lift za hemijski fakultet)
-void hack_screen()
-{
-    glClearColor(0.5,0,0,1);
-    
-    x_kam = lopta.x + 10;
-    y_kam = 5*cos(ugao_rotacije*PI/180);
-    z_kam = 1.2*lopta.z + 30;
-    
-}
-
-//Ukoliko se udje u lift na kraju hodnika ==> uspeh
-void winner_screen()
-{
-    glClearColor(0.1,0.9,0.1,1);
-    
-    //Kako ne bi bilo prelaza iz winner_screen u game_over_screen
-    brojac_poteza = BROJ_DOZVOLJENIH_POTEZA/2;
-    
-    x_kam = lopta.x + 5;
-    y_kam = lopta.y + 10;
-    z_kam = lopta.z + 15;
-}
 
 
 //Kretanje glavnog igraca(lopta) i clipping ravni zaduzene za hodnik
 //on_animation parametri se vracaju na 0 jer se broje potezi
-//Kada skrecem levo ili desno, u isto vreme se pomeram napred!!!
+//Kada skrecem levo ili desno, u isto vreme se i pomeram napred!!!
 void timer_movement(int value)
 {
     if(value != TIMER_ID_levo && value != TIMER_ID_desno && value != TIMER_ID_napred && value != TIMER_ID_nazad)
         return;
 
+    brojac_poteza++;
     
     //Clipping ravan
     if(lopta.z > -300)//Na pocetku clipping ravan sporije ide
@@ -605,7 +610,7 @@ void napravi_prepreke()
         niz_prepreka[i].tip_prepreke = tip_rand;
         
         
-        //boja
+        //boja( r,g,b su izmedju 0 i 1)
         niz_prepreka[i].r = (float)rand()/RAND_MAX + rand_traka/10.0;
         niz_prepreka[i].g = (float)rand()/RAND_MAX + 2*rand_traka/10.0;
         niz_prepreka[i].b = (float)rand()/RAND_MAX + rand_traka/10.0;
@@ -623,8 +628,11 @@ void nacrtaj_prepreke()
     for(i = 0 ; i < BROJ_PREPREKA ; i++)
     {
         glPushMatrix();
+            
+            //boja
             glColor3f(niz_prepreka[i].r,niz_prepreka[i].g,niz_prepreka[i].b);
             
+            //pozicioniranje
             glTranslatef(niz_prepreka[i].x,niz_prepreka[i].y,-niz_prepreka[i].z);
             
             switch(niz_prepreka[i].tip_prepreke)
@@ -676,7 +684,7 @@ void napravi_hodnik()
 {
     glDisable(GL_LIGHTING);
     
-    //'Podizanje' lifta kada clipping ravan dodje do kraja staze
+    //'Podizanje' lifta kada clipping ravan dodje do kraja hodnika
     if(clip_parametar <= -DUZINA_STAZE+1)
         podizanje_lifta += 1;
     
@@ -883,7 +891,7 @@ void napravi_hodnik()
         napravi_coveculjka(0,0,0,0);
     glPopMatrix();
     
-    //Drugi covek u redu za STUDENTSKU SLUZBU - mase desnom rukom
+    //Drugi covek u redu za STUDENTSKU SLUZBU - mase levom rukom
     glPushMatrix();
         glColor3f(0.1,0.9,0.1);
         
@@ -925,6 +933,7 @@ static void on_display(void)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     //Kamera prati lopticu
+    //Koordinate su ovakve zbog mogucnosti pomeranja*
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     gluLookAt(
@@ -1042,13 +1051,13 @@ static void on_display(void)
     glPopMatrix();
     
     
-    //Prepreke 
+    //Pravljenje prepreka(raspored se menja tek kada se ponovo pokrene igrica) 
     glPushMatrix();
         nacrtaj_prepreke();
     glPopMatrix();
     
     
-    //Clipping ravan za hodnik
+    //Clipping ravan za hodnik(sve osim prepreka i podloge)
     double clip_plane[] = {0,0,-1 ,clip_parametar};
     glClipPlane(GL_CLIP_PLANE0 , clip_plane);
     
@@ -1063,24 +1072,31 @@ static void on_display(void)
     if(lopta.z <= 10)
         lopta.z -= 20;
     
-    //Pocetni polozaj
+    
+    //Pocetni polozaj lopte
     glTranslatef(0,0,lopta.z);
     
     
     //Ispis teksta i racunanje pokreta
     preostali_broj_poteza = BROJ_DOZVOLJENIH_POTEZA-brojac_poteza;
     
+    
     //Igrac ima jos poteza ; Igrac je jos uvek je na stazi ; Lift jos uvek nije otisao
-    if(preostali_broj_poteza > 0 && (lopta.z < 40 && lopta.z > DUZINA_STAZE*(-1)) && podizanje_lifta < VISINA_ORMARA)
+    if(preostali_broj_poteza > 0 && 
+        (lopta.z < 40 && lopta.z > DUZINA_STAZE*(-1)) && 
+        podizanje_lifta < VISINA_ORMARA)
     {
         sprintf(ispis, "PREOSTALI BROJ POTEZA: %d" ,preostali_broj_poteza);
     }
     //Igrac nema vise poteza / Udario je u kocku / Lift je otisao 
-    else if(preostali_broj_poteza <= 0 || ind_za_game_over == 1 || podizanje_lifta >= VISINA_ORMARA || (preostali_broj_poteza <= 0 && lopta.z < DUZINA_STAZE*(-1)))
+    else if(preostali_broj_poteza <= 0 || 
+        ind_za_game_over == 1 ||
+        podizanje_lifta >= VISINA_ORMARA || 
+        (preostali_broj_poteza <= 0 && lopta.z < DUZINA_STAZE*(-1)))
     {
         if(podizanje_lifta >= VISINA_ORMARA)
             sprintf(ispis, "LIFT JE OTISAO,ALI TE STEPENICE CEKAJU! :(");
-        else if(ind_za_game_over == 1)
+        else if(ind_za_game_over == 1 || preostali_broj_poteza <= 0)
             sprintf(ispis, "KRAJ IGRE!");
         game_over_screen();
     }
@@ -1091,16 +1107,23 @@ static void on_display(void)
         
         hack_screen();
     }
-    //Igra u toku
-    else if(preostali_broj_poteza > 0 && lopta.z <= DUZINA_STAZE*(-1) && podizanje_lifta < VISINA_ORMARA)
+    //Dosli smo do lifta
+    else if(preostali_broj_poteza > 0 &&
+        lopta.z <= DUZINA_STAZE*(-1) &&
+        podizanje_lifta < VISINA_ORMARA)
     {
         sprintf(ispis, "USLI STE U LIFT!!! :)");
         
         winner_screen();
     }
 
+    
     //Ispis teksta
-    drawString(55,20,-20,ispis);
+    /*NAPOMENA:
+     * Na nekim racunarima, na kojima je testirana igrica, nije se video ceo tekst
+     * Resenje: Smanjiti x koordinatu i povecati y koordinatu(npr za 5 obe)
+     */
+    drawString(45,23,-20,ispis);
     
     
     glutSwapBuffers();
@@ -1114,8 +1137,8 @@ static void initialize(void)
 {
     glClearColor(0.75,0.75,0.75,0);
     
-    
     srand(time(NULL));
+    
     
     //Ambijentalna boja
     GLfloat light_ambient[] = { 0, 0, 0, 1 };
@@ -1137,6 +1160,7 @@ static void initialize(void)
     glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);
     
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, model_ambient);
+    
     
     
     //Lepljenje tekstura
@@ -1242,11 +1266,12 @@ static void initialize(void)
     leg2_angle               =  10;
     
     
-    //Clipping ravan
+    //Clipping ravan(pocetna vrednost td stoji iza lopte)
     clip_parametar = 11;
     
     
-    //Prepreke
+    //Prepreke(popunjavanje niza koji opisuje prepreke)
+    //U funkciji on_display se poziva funkcija nacrtaj_prepreke koja koristi informacije iz popunjenog niza)
     napravi_prepreke();
 }
 
@@ -1255,7 +1280,7 @@ static void initialize(void)
 int provera_sudara()
 {
     //Igrac moze najvise da napreduje za 40
-    //Sto znaci ako je prepreka na z = 100 , on moze da je dohvati sa lopta.z = 70/80/90/100 
+    //Sto znaci ako je prepreka na z = 100 , on moze da je dohvati sa lopta.z = 70 /80/90/100 
     //Zato imam vise trenutnih pozicija
     int trenutna_pozicija_z = abs((int)lopta.z);
     int trenutna_pozicija_z1=trenutna_pozicija_z+20;
@@ -1289,20 +1314,17 @@ int provera_sudara()
             {
                 ind_za_game_over = 1;
                 sprintf(ispis, "KRAJ IGRE!");
-                //printf("kocka\n");
                 glutPostRedisplay();
                 return 1;
             }
             else if(niz_prepreka[i].tip_prepreke == 1)//cajnik
             {
                 brojac_poteza -= 10;
-                //printf("cajnik\n");
                 glutPostRedisplay();
                 return 0;
             }
             else if(niz_prepreka[i].tip_prepreke == 2)//torus
             {
-                //printf("torus\n");
                 alfa = 0; 
                 beta = 0;
             
@@ -1325,15 +1347,23 @@ int provera_sudara()
             else if(niz_prepreka[i].tip_prepreke == 3)//epruveta
             {
                 lopta.z -= 40;
-                //printf("epruveta\n");
                 glutPostRedisplay();
                 return 0;
             }
             else if(niz_prepreka[i].tip_prepreke == 4)//coveculjak
             {
                 clip_parametar -= 10;
-                brojac_poteza += 10;
-                //printf("coveculjak\n");
+                //Zbog brojnih transformacija nad coveculjkom i njegovim kooridnatama
+                //ovo je potrebno kako se ne bi nepotrebno registrovao sudar
+                if( (niz_prepreka[i].traka == 0 && lopta.x < 0) ||
+                    (niz_prepreka[i].traka == 1 && lopta.x < 0) ||
+                    (niz_prepreka[i].traka == 2 && lopta.x == 0) )
+                {
+                    if(BROJ_DOZVOLJENIH_POTEZA - brojac_poteza > 10)
+                        brojac_poteza += 10;
+                    else
+                        brojac_poteza = 0;  //==> kraj igre
+                }
                 glutPostRedisplay();
                 return 0;
             }
@@ -1357,7 +1387,6 @@ static void on_keyboard(unsigned char key, int x, int y)
         case 'a':
             if(pokrenuta_igrica)
             {
-                brojac_poteza++;
                 if(!on_animation_levo )
                 {
                     lopta.x -= lopta.kraj;
@@ -1394,7 +1423,6 @@ static void on_keyboard(unsigned char key, int x, int y)
         case 'd':
             if(pokrenuta_igrica)
             {
-                brojac_poteza++;
                 if(!on_animation_desno)
                 {   
                     lopta.x += lopta.kraj;
@@ -1428,7 +1456,6 @@ static void on_keyboard(unsigned char key, int x, int y)
         case 'w':
             if(pokrenuta_igrica)
             {
-                brojac_poteza++;
                 if(!on_animation_napred)
                 {
                     glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_napred);
@@ -1467,7 +1494,8 @@ static void on_keyboard(unsigned char key, int x, int y)
                 glutPostRedisplay();
             }   
             break;
-            
+        //Oznacen kod zakomentarisati ako ima nepredvidive akcije
+        //------------------------------------------*oznacen kod*    
         //Okretanje kamere oko z-ose(desno na levo)
         case 'E':
         case 'e':
@@ -1497,7 +1525,8 @@ static void on_keyboard(unsigned char key, int x, int y)
             
             glutPostRedisplay();
             break;
-        
+        //-------------------------------------------*kraj oznacenog koda*
+            
         //Resetovanje kamere i loptice na pocetne koordinate
         case 'R':
         case 'r':

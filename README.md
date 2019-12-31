@@ -17,8 +17,6 @@ Broj poteza je ograničen, pa su nam zato potrebni čajnici(dodatni potezi) i ep
 | <kbd>D</kbd>  |Igrač skrece desno  |
 | <kbd>W</kbd>  |Igrač ide napred    | 
 | <kbd>S</kbd>  |Igrač ide unazad    | 
-| <kbd>Q</kbd>  |Nameštanje kamere igrača   |
-| <kbd>E</kbd>  |Nameštanje kamere igrača  |
 | <kbd>R</kbd>  |Igrica se restartuje   |
 | <kbd>ESC</kbd>|Izlaz iz igrice |
 

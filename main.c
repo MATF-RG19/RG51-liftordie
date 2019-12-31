@@ -5,8 +5,9 @@
 #include <time.h>
 #include "image.h"
 
-//Broj 290 je dobijen kao prosecan broj nakon testiranja igrice
-#define BROJ_DOZVOLJENIH_POTEZA      (290)
+//Broj 200 je dobijen kao prosecan broj nakon testiranja igrice
+//NAPOMENA: Kako bi videli celu stazu,BROJ_DOZVOLJENIH_POTEZA staviti na 300
+#define BROJ_DOZVOLJENIH_POTEZA      (200)
 
 #define PI 3.1415926535897
 #define BROJ_PREPREKA      (45)
@@ -257,7 +258,7 @@ void napravi_epruvetu()
 }
 
 
-//Timer za kretanje coveculjka
+//Timer za pokrete coveculjka
 void timer_covek(int value)
 {
     if(value != TIMER_ID_covek)
@@ -452,7 +453,7 @@ void napravi_coveculjka(int ind_kretanja,float r,float g,float b)
         
 
 
-//Ispis teksta koji je fiksiran na ekran i prati kretanje loptice
+//Ispis teksta koji je fiksiran na ekranu i prati kretanje loptice
 void drawString(float x, float y, float z, char *string ) {
   
     glDisable(GL_LIGHTING);
@@ -603,7 +604,7 @@ void napravi_prepreke()
         //y
         niz_prepreka[i].y = 5;
         
-        //z
+        //z == fiksna udaljenost izmedju prepreka je 200
         niz_prepreka[i].z =  (i+1)*200;
         
         //tip_prepreke
@@ -1389,11 +1390,11 @@ static void on_keyboard(unsigned char key, int x, int y)
             {
                 if(!on_animation_levo )
                 {
-                    lopta.x -= lopta.kraj;
+                    lopta.x -= lopta.kraj;//pomeranje u levu traku
                     if(lopta.x < -DUZINA_SKRETANJA)
                         lopta.x = -DUZINA_SKRETANJA;
                     
-                    if(lopta.x < 0)
+                    if(lopta.x < 0)//ako je vec u levoj traci,samo nastavlja pravo da se krece
                         lopta.z -= DUZINA_KORAKA-30;
                     
                     
@@ -1425,11 +1426,11 @@ static void on_keyboard(unsigned char key, int x, int y)
             {
                 if(!on_animation_desno)
                 {   
-                    lopta.x += lopta.kraj;
+                    lopta.x += lopta.kraj;//pomeranje u desnu traku
                     if(lopta.x > DUZINA_SKRETANJA)
                         lopta.x = DUZINA_SKRETANJA;
                     
-                    if(lopta.x > 0)
+                    if(lopta.x > 0)//ako je vec u desnoj,samo nastavlja pravo da se krece
                         lopta.z -= DUZINA_KORAKA-30;
                     
                     glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_desno);
@@ -1446,7 +1447,6 @@ static void on_keyboard(unsigned char key, int x, int y)
                     else
                         glutPostRedisplay();
                     
-                    glutPostRedisplay();
                 }
             }
             break;
@@ -1484,7 +1484,7 @@ static void on_keyboard(unsigned char key, int x, int y)
             {
                 if(!on_animation_nazad)
                 {
-                    lopta.z += 4*DUZINA_KORAKA;
+                    lopta.z += 4*DUZINA_KORAKA;//Korak unazad je veci, da se ne bi isplatilo kretanje unazad u toku igre
                 }  
                 
                 glutTimerFunc(TIMER_INTERVAL , timer_movement , TIMER_ID_nazad);
@@ -1494,8 +1494,9 @@ static void on_keyboard(unsigned char key, int x, int y)
                 glutPostRedisplay();
             }   
             break;
-        //Oznacen kod zakomentarisati ako ima nepredvidive akcije
+        //Oznacen kod zakomentarisan zbog nejasnog ponasanja na drugim racunarima
         //------------------------------------------*oznacen kod*    
+       /*
         //Okretanje kamere oko z-ose(desno na levo)
         case 'E':
         case 'e':
@@ -1526,8 +1527,8 @@ static void on_keyboard(unsigned char key, int x, int y)
             glutPostRedisplay();
             break;
         //-------------------------------------------*kraj oznacenog koda*
-            
-        //Resetovanje kamere i loptice na pocetne koordinate
+        */
+        //Resetovanje kamere, loptice i svih parametara na pocetne vrednosti
         case 'R':
         case 'r':
             alfa = 0; 
@@ -1621,6 +1622,3 @@ int main(int argc,char** argv)
 
     return 0;
 }
-
-
-
